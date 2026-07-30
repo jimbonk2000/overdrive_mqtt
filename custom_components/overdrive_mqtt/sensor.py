@@ -21,7 +21,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         OverdriveSensor(entry, entry_data, "volt_12v", "12V Battery Voltage", UnitOfElectricPotential.VOLT, SensorDeviceClass.VOLTAGE),
         OverdriveSensor(entry, entry_data, "gear", "Selected Gear"),
         OverdriveSensor(entry, entry_data, "speed", "Speed", UnitOfSpeed.KILOMETERS_PER_HOUR, SensorDeviceClass.SPEED),
-        
         # Powertrain Performance Tracking
         OverdriveSensor(entry, entry_data, "power", "Power", "kW", SensorDeviceClass.POWER),
         OverdriveSensor(entry, entry_data, "charge_power", "Charge Power", "kW", SensorDeviceClass.POWER),
@@ -46,7 +45,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         OverdriveSensor(entry, entry_data, "cell_t_min", "Cell Temp Min", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
         OverdriveSensor(entry, entry_data, "cell_t_avg", "Cell Temp Avg", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
         OverdriveSensor(entry, entry_data, "cell_t_delta", "Cell Temp Delta", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
-        
         # Physical Module Temperatures
         OverdriveSensor(entry, entry_data, "ext_temp", "Exterior Temperature", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
         OverdriveSensor(entry, entry_data, "batt_temp", "Battery Temperature", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
@@ -77,7 +75,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         OverdriveSensor(entry, entry_data, "charger_state", "Charger State Code"),
         OverdriveSensor(entry, entry_data, "charging_mode", "Charging Mode Code"),
         OverdriveSensor(entry, entry_data, "charging_type", "Charging Type Code"),
-        
         # Cabin Utilities
         OverdriveSensor(entry, entry_data, "ac_cycle", "AC Cycle Mode"),
         OverdriveSensor(entry, entry_data, "ac_wind", "AC Wind Level"),
@@ -141,14 +138,14 @@ class OverdriveSensor(SensorEntity):
             async_dispatcher_connect(self.hass, f"{DOMAIN}_{self._entry_id}_update", self._update_callback)
         )
 
-@callbackdef 
-_update_callback(self):
-payload = self._data_store.get("data", {})
-val = payload.get(self._key)
-
-if val in INVALID_VALUES or val == "NULL":
-    self._attr_native_value = None
-    else:
-        self._attr_native_value = val
-
-self.async_write_ha_state()
+    @callback
+    def _update_callback(self):
+        payload = self._data_store.get("data", {})
+        val = payload.get(self._key)
+        
+        if val in INVALID_VALUES or val == "NULL":
+            self._attr_native_value = None
+        else:
+            self._attr_native_value = val
+            
+        self.async_write_ha_state()
