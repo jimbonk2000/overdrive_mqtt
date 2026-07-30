@@ -138,4 +138,17 @@ class OverdriveSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(
-async_dispatcher_connect(self.hass, f"{DOMAIN}_{self._entry_id}_update", self._update_callback))@callbackdef _update_callback(self):payload = self._data_store.get("data", {})val = payload.get(self._key)if val in INVALID_VALUES or val == "NULL":self._attr_native_value = Noneelse:self._attr_native_value = valself.async_write_ha_state()
+            async_dispatcher_connect(self.hass, f"{DOMAIN}_{self._entry_id}_update", self._update_callback)
+        )
+
+@callbackdef 
+_update_callback(self):
+payload = self._data_store.get("data", {})
+val = payload.get(self._key)
+
+if val in INVALID_VALUES or val == "NULL":
+    self._attr_native_value = None
+    else:
+        self._attr_native_value = val
+
+self.async_write_ha_state()
