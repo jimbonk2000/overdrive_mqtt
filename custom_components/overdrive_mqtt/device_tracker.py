@@ -7,14 +7,15 @@ from .const import DOMAIN, INVALID_VALUES
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     entry_data = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([OverdriveVehicleTracker(entry.entry_id, entry_data)])
+    async_add_entities([OverdriveVehicleTracker(entry, entry_data)])
 
 class OverdriveVehicleTracker(TrackerEntity):
-    def __init__(self, entry_id, data_store):
-        self._entry_id = entry_id
+    def __init__(self, entry: ConfigEntry, data_store):
+        self._entry = entry
+        self._entry_id = entry.entry_id
         self._data_store = data_store
-        self._attr_name = "Overdrive Vehicle Position"
-        self._attr_unique_id = f"overdrive_{entry_id}_tracker"
+        self._attr_name = f"{entry.title} Position Tracker"
+        self._attr_unique_id = f"overdrive_{self._entry_id}_tracker"
 
     @property
     def source_type(self) -> SourceType:
@@ -23,6 +24,15 @@ class OverdriveVehicleTracker(TrackerEntity):
     @property
     def available(self) -> bool:
         return self._data_store.get("online", False)
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": self._entry.title,
+            "manufacturer": "Overdrive",
+            "model": "Vehicle Telemetry Interface",
+        }
 
     @property
     def latitude(self) -> float | None:
