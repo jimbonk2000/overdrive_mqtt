@@ -9,15 +9,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entry_data = hass.data[DOMAIN][entry.entry_id]
     
     binary_sensors = [
+        # Connectivity
         OverdriveOnlineBinarySensor(entry.entry_id, entry_data),
+        
+        # Status Flags
         OverdriveBinarySensor(entry.entry_id, entry_data, "is_charging", "Charging Status", BinarySensorDeviceClass.BATTERY_CHARGING),
         OverdriveBinarySensor(entry.entry_id, entry_data, "is_parked", "Parking Status", None),
         
+        # Structural Arrays (Doors)
         OverdriveArrayBinarySensor(entry.entry_id, entry_data, "door_lock", 0, "Door Front Left", BinarySensorDeviceClass.LOCK, invert=True),
         OverdriveArrayBinarySensor(entry.entry_id, entry_data, "door_lock", 1, "Door Front Right", BinarySensorDeviceClass.LOCK, invert=True),
         
+        # Structural Arrays (Windows)
         OverdriveArrayBinarySensor(entry.entry_id, entry_data, "window_open", 0, "Window Front Left", BinarySensorDeviceClass.WINDOW),
         OverdriveArrayBinarySensor(entry.entry_id, entry_data, "window_open", 1, "Window Front Right", BinarySensorDeviceClass.WINDOW),
+
+        # Structural Arrays (Seatbelts - Safety Device Class where On = Warning/Unbuckled while occupied)
+        OverdriveArrayBinarySensor(entry.entry_id, entry_data, "seatbelt", 0, "Seatbelt Driver", BinarySensorDeviceClass.SAFETY),
+        OverdriveArrayBinarySensor(entry.entry_id, entry_data, "seatbelt", 1, "Seatbelt Passenger", BinarySensorDeviceClass.SAFETY),
     ]
     async_add_entities(binary_sensors)
 
@@ -100,6 +109,8 @@ class OverdriveArrayBinarySensor(BinarySensorEntity):
             if raw_val in INVALID_VALUES:
                 self._attr_is_on = None
             elif self._invert:
+                # If invert=True (e.g. for Locks where -1 is secured), 
+                # On/True indicates Unlocked, Off/False indicates Locked.
                 self._attr_is_on = bool(raw_val != -1)
             else:
                 self._attr_is_on = bool(raw_val > 0)
