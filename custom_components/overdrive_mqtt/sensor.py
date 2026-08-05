@@ -12,8 +12,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     
     sensors = [
         # System & Timestamps
-        OverdriveSensor(entry, entry_data, "utc", "UTC Timestamp", device_class=SensorDeviceClass.TIMESTAMP),
-        OverdriveSensor(entry, entry_data, "vd_timestamp", "VD Timestamp", device_class=SensorDeviceClass.TIMESTAMP),
+        OverdriveSensor(entry, entry_data, "utc", "UTC Timestamp"),
+        OverdriveSensor(entry, entry_data, "vd_timestamp", "VD Timestamp"),
         
         # Core EV Metrics
         OverdriveSensor(entry, entry_data, "soc", "Battery State of Charge", PERCENTAGE, SensorDeviceClass.BATTERY),
@@ -138,34 +138,14 @@ class OverdriveSensor(SensorEntity):
         self.async_on_remove(
             async_dispatcher_connect(self.hass, f"{DOMAIN}_{self._entry_id}_update", self._update_callback)
         )
-
-
-    @callback
-    def _update_callback(self) -> None:
-        """Handle updated data from the coordinator."""
-        from datetime import datetime, timezone
         
-        raw_value = self.coordinator.data.get(self.entity_description.key)
-
-        if raw_value is not None:
-            # Check if entity metadata or entity key states it is a timestamp
-            is_timestamp = (
-                getattr(self.entity_description, "device_class", None) == "timestamp" 
-                or "timestamp" in self.entity_description.key
-            )
-            
-            if is_timestamp:
-                try:
-                    # Formulate an explicit, timezone-aware datetime object
-                    self._attr_native_value = datetime.fromtimestamp(int(raw_value), timezone.utc)
-                except (ValueError, TypeError):
-                    self._attr_native_value = None
-            else:
-                self._attr_native_value = raw_value
-        else:
+    @callback
+    def _update_callback(self):
+        payload = self._data_store.get("data", {})
+        val = payload.get(self._key)
+        
+        if val in INVALID_VALUES or val == "NULL":
             self._attr_native_value = None
-
-        try:
-            self.async_write_ha_state()
-        except Exception as err:
-            _LOGGER.error("Failed writing state for %s: %s", self.entity_id, err)
+        else:
+            self._attr_native_value = val
+        self.async_write_ha_state()
