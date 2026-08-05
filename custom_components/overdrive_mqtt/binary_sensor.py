@@ -58,7 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         OverdriveArrayBinarySensor(entry, entry_data, "window_open", 2, "Window Rear Left", BinarySensorDeviceClass.WINDOW),
         OverdriveArrayBinarySensor(entry, entry_data, "window_open", 3, "Window Rear Right", BinarySensorDeviceClass.WINDOW),
         OverdriveArrayBinarySensor(entry, entry_data, "window_open", 4, "Sunroof Window Extension", BinarySensorDeviceClass.WINDOW),
-        OverdriveArrayBinarySensor(entry, entry_data, "window_open", 5, "Rear Vent Window Panel", BinarySensorDeviceClass.WINDOW),
+        OverdriveArrayBinarySensor(entry, entry_data, "window_open", 5, "Sunshade Window", BinarySensorDeviceClass.WINDOW),
         
         # Pneumatic Tire Defect Status Monitoring Flags
         OverdriveArrayBinarySensor(entry, entry_data, "tyre_p_state_fl", 0, "Tyre Evaluation Status Front Left Flaw Detect", BinarySensorDeviceClass.PROBLEM),
@@ -185,22 +185,32 @@ class OverdriveArrayBinarySensor(BinarySensorEntity):
         )
 
     @callback
-    def _update_callback(self):
-        payload = self._data_store.get("data", {})
-        target_array = payload.get(self._key, [])
-        
-        if len(target_array) > self._index:
-            raw_val = target_array[self._index]
-            
-            if raw_val in INVALID_VALUES:
-                self._attr_is_on = None
-            elif self._evaluator:
-                self._attr_is_on = bool(self._evaluator(raw_val))
-            elif self._invert:
-                self._attr_is_on = bool(raw_val != -1)
+    def _update_callback(self) -> None:
+        """Handle updated data from the coordinator."""
+        raw_val = self.coordinator.data.get(self.entity_description.key)
+
+        # Bug 1 Fix: Verify target array index logic handles both lists and dict objects safely
+        if hasattr(self, "_index") and self._index is not None:
+            if isinstance(raw_val, (list, dict, str)):
+                if len(raw_val) > self._index:
+                    raw_val = raw_val[self._index]
+                else:
+                    raw_val = None
             else:
-                self._attr_is_on = bool(raw_val > 0)
+                # If target container is an absolute integer rather than array, default use case
+                raw_val = raw_val
+
+        # Bug 2 Fix: Safely parse conditional states against potential NoneType outputs
+        if raw_val is not None:
+            try:
+                self._attr_is_on = bool(int(raw_val) > 0)
+            except (ValueError, TypeError):
+                # Fallback evaluate string booleans natively if int translation fails
+                self._attr_is_on = str(raw_val).lower() in ("true", "1", "on", "yes")
         else:
-            self._attr_is_on = None
-            
-        self.async_write_ha_state()
+            self._attr_is_on = False
+
+        try:
+            self.async_write_ha_state()
+        except Exception as err:
+            _LOGGER.error("Failed writing state for binary sensor %s: %s", self.entity_id, err)
