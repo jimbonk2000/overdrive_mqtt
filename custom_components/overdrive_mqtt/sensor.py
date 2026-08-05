@@ -5,6 +5,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN, INVALID_VALUES
+from datetime import datetime, timezone
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     entry_data = hass.data[DOMAIN][entry.entry_id]
@@ -139,13 +140,25 @@ class OverdriveSensor(SensorEntity):
         )
 
     @callback
-    def _update_callback(self):
-        payload = self._data_store.get("data", {})
-        val = payload.get(self._key)
-        
-        if val in INVALID_VALUES or val == "NULL":
-            self._attr_native_value = None
+    def _update_callback(self) -> None:
+        """Handle updated data from the coordinator."""
+        # Retrieve the raw telemetry data point from your coordinator
+        raw_value = self.coordinator.data.get(self.entity_description.key)
+
+        if raw_value is not None:
+            # FIX: If the sensor is a timestamp but arrives as an integer/float epoch
+            if self.entity_description.device_class == "timestamp" or "timestamp" in self.entity_description.key:
+                try:
+                    # Convert raw unix epoch integer into a timezone-aware UTC datetime object
+                    self._attr_native_value = datetime.fromtimestamp(int(raw_value), timezone.utc)
+                except (ValueError, TypeError):
+                    self._attr_native_value = None
+            else:
+                # Standard handling for regular numeric or text fields
+                self._attr_native_value = raw_value
         else:
-            self._attr_native_value = val
-            
+            self._attr_native_value = None
+
+        # Line 151 where the original crash occurred:
         self.async_write_ha_state()
+
