@@ -16,6 +16,10 @@ class OverdriveVehicleTracker(TrackerEntity):
         self._data_store = data_store
         self._attr_name = f"{entry.title} Position Tracker"
         self._attr_unique_id = f"overdrive_{self._entry_id}_tracker"
+        self._lat = None
+        self._lon = None
+        self._elevation = None
+        self._heading = None
 
     @property
     def source_type(self) -> SourceType:
@@ -23,7 +27,7 @@ class OverdriveVehicleTracker(TrackerEntity):
 
     @property
     def available(self) -> bool:
-        return self._data_store.get("online", False)
+        return True
 
     @property
     def device_info(self):
@@ -36,23 +40,17 @@ class OverdriveVehicleTracker(TrackerEntity):
 
     @property
     def latitude(self) -> float | None:
-        lat = self._data_store.get("data", {}).get("lat")
-        return None if lat in INVALID_VALUES else lat
+        return self._lat
 
     @property
     def longitude(self) -> float | None:
-        lon = self._data_store.get("data", {}).get("lon")
-        return None if lon in INVALID_VALUES else lon
+        return self._lon
 
     @property
     def extra_state_attributes(self) -> dict:
-        payload = self._data_store.get("data", {})
-        elev = payload.get("elevation")
-        head = payload.get("heading")
-        
         return {
-            "elevation_meters": None if elev in INVALID_VALUES else elev,
-            "heading_degrees": None if head in INVALID_VALUES else head
+            "elevation_meters": self._elevation,
+            "heading_degrees": self._heading
         }
 
     async def async_added_to_hass(self) -> None:
@@ -62,4 +60,18 @@ class OverdriveVehicleTracker(TrackerEntity):
 
     @callback
     def _update_callback(self):
+        if not self._data_store.get("online", False):
+            return
+
+        payload = self._data_store.get("data", {})
+        lat = payload.get("lat")
+        lon = payload.get("lon")
+        elev = payload.get("elevation")
+        head = payload.get("heading")
+
+        if lat not in INVALID_VALUES: self._lat = lat
+        if lon not in INVALID_VALUES: self._lon = lon
+        if elev not in INVALID_VALUES: self._elevation = elev
+        if head not in INVALID_VALUES: self._heading = head
+
         self.async_write_ha_state()
