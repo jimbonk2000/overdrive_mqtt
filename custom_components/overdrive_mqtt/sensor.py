@@ -123,7 +123,8 @@ class OverdriveSensor(SensorEntity):
 
     @property
     def available(self) -> bool:
-        return self._data_store.get("online", False)
+        # Dipaksa selalu True agar data terakhir tidak berubah menjadi 'unavailable'
+        return True
 
     @property
     def device_info(self):
@@ -138,9 +139,13 @@ class OverdriveSensor(SensorEntity):
         self.async_on_remove(
             async_dispatcher_connect(self.hass, f"{DOMAIN}_{self._entry_id}_update", self._update_callback)
         )
-        
+
     @callback
     def _update_callback(self):
+        # Proteksi: Jangan perbarui data jika status jaringan sedang offline
+        if not self._data_store.get("online", False):
+            return
+
         payload = self._data_store.get("data", {})
         val = payload.get(self._key)
         
@@ -148,4 +153,5 @@ class OverdriveSensor(SensorEntity):
             self._attr_native_value = None
         else:
             self._attr_native_value = val
+            
         self.async_write_ha_state()
