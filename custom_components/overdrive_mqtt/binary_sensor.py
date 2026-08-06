@@ -133,7 +133,7 @@ class OverdriveBinarySensor(BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        return self._data_store.get("online", False)
+        return True
 
     @property
     def device_info(self):
@@ -146,6 +146,9 @@ class OverdriveBinarySensor(BinarySensorEntity):
 
     @callback
     def _update_callback(self):
+        if not self._data_store.get("online", False):
+            return
+
         payload = self._data_store.get("data", {})
         val = payload.get(self._key)
         
@@ -173,7 +176,7 @@ class OverdriveArrayBinarySensor(BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        return self._data_store.get("online", False)
+        return True
 
     @property
     def device_info(self):
@@ -186,6 +189,9 @@ class OverdriveArrayBinarySensor(BinarySensorEntity):
 
     @callback
     def _update_callback(self):
+        if not self._data_store.get("online", False):
+            return
+
         payload = self._data_store.get("data", {})
         target_array = payload.get(self._key, [])
         
